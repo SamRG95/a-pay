@@ -1,0 +1,163 @@
+// Prisma schema for iglesia_db
+// Generado a partir del diagrama y recomendaciones
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Iglesia {
+  idIglesia     Int       @id @default(autoincrement())
+  nombre        String    @db.VarChar(100)
+  direccion     String    @db.VarChar(150)
+  telefono      String    @db.VarChar(20)
+  responsable   String    @db.VarChar(100)
+  modulos       Modulo[]
+  usuarios      Usuario[]
+  qrPagos       QrPago[]
+  cortes        Corte[]
+}
+
+model Modulo {
+  idModulo           Int        @id @default(autoincrement())
+  nombreModulo       String     @db.VarChar(50)
+  nombreResponsable  String     @db.VarChar(50)
+  usuario           String     @db.VarChar(70)
+  password          String     @db.VarChar(70)
+  token             String     @db.VarChar(80)
+  imagenModulo      String?    @db.VarChar(70)
+  idIglesia         Int
+  iglesia           Iglesia    @relation(fields: [idIglesia], references: [idIglesia])
+  productos         Producto[]
+}
+
+model Usuario {
+  idUsuario         Int      @id @default(autoincrement())
+  usuario           String   @unique
+  password          String   @db.VarChar(50)
+  nombreResponsable String   @db.VarChar(100)
+  token             String   @db.VarChar(80)
+  rol               String   @db.VarChar(30)
+  idIglesia         Int
+  iglesia           Iglesia  @relation(fields: [idIglesia], references: [idIglesia])
+  abonos            Abono[]
+}
+
+model Producto {
+  idProducto      Int         @id @default(autoincrement())
+  idModulo        Int
+  modulo          Modulo      @relation(fields: [idModulo], references: [idModulo], onDelete: Cascade)
+  nombreProducto  String      @db.VarChar(50)
+  precio          Float
+  urlImage        String?     @db.VarChar(100)
+  compras         Compra[]
+  complementoProductos ComplementoProducto[]
+}
+
+model QrPago {
+  idQrPago      Int        @id @default(autoincrement())
+  token         String     @db.VarChar(80)
+  saldo         Float
+  nombre        String     @db.VarChar(80)
+  registrado    Boolean
+  fechaCreacion DateTime
+  idIglesia     Int
+  iglesia       Iglesia    @relation(fields: [idIglesia], references: [idIglesia])
+  abonos        Abono[]
+  pedidos       Pedido[]   @relation("QrPagoPedidos")
+  traspasosEnvio Transpaso[] @relation("TraspasoEnvio")
+  traspasosRecibe Transpaso[] @relation("TraspasoRecibe")
+}
+
+model Corte {
+  idCorte         Int      @id @default(autoincrement())
+  fechaCorte      DateTime
+  cantidad        Float
+  nombreRecolector String  @db.VarChar(50)
+  idIglesia       Int
+  iglesia         Iglesia  @relation(fields: [idIglesia], references: [idIglesia])
+  abonos          Abono[]
+}
+
+model Abono {
+  idAbono      Int      @id @default(autoincrement())
+  idQrPago     Int
+  qrPago       QrPago   @relation(fields: [idQrPago], references: [idQrPago])
+  idUsuario    Int
+  usuario      Usuario  @relation(fields: [idUsuario], references: [idUsuario])
+  cantidad     Float
+  fechaAbono   DateTime
+  idCorte      Int?
+  corte        Corte?   @relation(fields: [idCorte], references: [idCorte])
+}
+
+model Pedido {
+  idPedido                Int        @id @default(autoincrement())
+  idQrPago                Int
+  qrPago                  QrPago     @relation("QrPagoPedidos", fields: [idQrPago], references: [idQrPago])
+  cantidadProductoTotal   Int
+  valorTotal              Float
+  entregado               Boolean
+  fechaPedido             DateTime
+  tipoPedido              String     @db.VarChar(50)
+  cancelado               Boolean
+  compras                 Compra[]
+  solicitudCancelaciones  SolicitudCancelacion[]
+}
+
+model Compra {
+  idCompra                Int        @id @default(autoincrement())
+  idPedido                Int
+  pedido                  Pedido     @relation(fields: [idPedido], references: [idPedido])
+  idProducto              Int
+  producto                Producto   @relation(fields: [idProducto], references: [idProducto])
+  fechaCompra             DateTime
+  nombreProductoOriginal  String     @db.VarChar(50)
+  precioOriginal          Float
+  complementoCompras      ComplementoCompra[]
+}
+
+model Transpaso {
+  idTranspaso      Int      @id @default(autoincrement())
+  fechaTranspaso   DateTime
+  idQrPagoEnvio    Int
+  qrPagoEnvio      QrPago   @relation("TraspasoEnvio", fields: [idQrPagoEnvio], references: [idQrPago])
+  idQrPagoSalio    Int
+  qrPagoSalio      QrPago   @relation("TraspasoRecibe", fields: [idQrPagoSalio], references: [idQrPago])
+}
+
+model SolicitudCancelacion {
+  idSolicitudCancelacion Int      @id @default(autoincrement())
+  idPedido              Int
+  pedido                Pedido   @relation(fields: [idPedido], references: [idPedido])
+  fechaSolicitud        DateTime
+  atendida              Boolean
+  realizada             Boolean
+}
+
+model Complemento {
+  idComplemento         Int      @id @default(autoincrement())
+  nombreComplemento     String   @db.VarChar(50)
+  complementoProductos  ComplementoProducto[]
+  complementoCompras    ComplementoCompra[]
+}
+
+model ComplementoProducto {
+  idComplementoProducto Int      @id @default(autoincrement())
+  idComplemento         Int
+  complemento           Complemento @relation(fields: [idComplemento], references: [idComplemento])
+  idProducto            Int
+  producto              Producto   @relation(fields: [idProducto], references: [idProducto])
+}
+
+model ComplementoCompra {
+  idComplementoCompra   Int      @id @default(autoincrement())
+  idComplemento         Int
+  complemento           Complemento @relation(fields: [idComplemento], references: [idComplemento])
+  idCompra              Int
+  compra                Compra     @relation(fields: [idCompra], references: [idCompra])
+} 
