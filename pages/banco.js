@@ -53,7 +53,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useAuth } from '../hooks/useAuth';
-import QrReader from 'react-qr-scanner';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const drawerWidth = 220;
 const bancoNombre = 'Banco';
@@ -754,6 +754,7 @@ function QRScanner({ onScan, onClose }) {
   const [cameraError, setCameraError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const scannerRef = useRef(null);
 
   // Función para obtener y seleccionar la cámara principal
   const getMainCamera = async () => {
@@ -781,9 +782,9 @@ function QRScanner({ onScan, onClose }) {
     getMainCamera();
   }, []);
 
-  const handleScan = (data) => {
-    if (data) {
-      onScan(data);
+  const handleScan = (decodedText, decodedResult) => {
+    if (decodedText) {
+      onScan(decodedText);
       onClose && onClose();
     }
   };
@@ -792,6 +793,29 @@ function QRScanner({ onScan, onClose }) {
     setCameraError(true);
     setErrorMessage('Error al acceder a la cámara. Verifica los permisos.');
   };
+
+  useEffect(() => {
+    if (scannerRef.current) {
+      const scanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { 
+          fps: 10, 
+          qrbox: 250,
+          facingMode: "environment"
+        },
+        false
+      );
+      
+      scanner.render(handleScan, handleError);
+      scannerRef.current = scanner;
+      
+      return () => {
+        if (scannerRef.current) {
+          scannerRef.current.clear();
+        }
+      };
+    }
+  }, []);
 
   if (cameraError) {
     return (
@@ -828,21 +852,7 @@ function QRScanner({ onScan, onClose }) {
 
   return (
     <div style={{ textAlign: 'center' }}>
-      <QrReader
-        delay={300}
-        onError={handleError}
-        onScan={handleScan}
-        style={{ width: '100%', maxWidth: 320, borderRadius: 8 }}
-        constraints={{
-          video: {
-            deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-            facingMode: 'environment',
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 },
-            aspectRatio: { ideal: 4/3 }
-          }
-        }}
-      />
+      <div id="qr-reader" style={{ width: '100%', maxWidth: 320, borderRadius: 8 }} />
       <Button fullWidth variant="outlined" sx={{ mt: 2, color: '#FFE066', borderColor: '#FFE066' }} onClick={onClose}>Cancelar</Button>
     </div>
   );

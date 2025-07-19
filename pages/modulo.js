@@ -50,7 +50,7 @@ import BakeryDiningIcon from '@mui/icons-material/BakeryDining';
 import LunchDiningIcon from '@mui/icons-material/LunchDining';
 import MenuIcon from '@mui/icons-material/Menu';
 import { useAuth } from '../hooks/useAuth';
-import QrReader from 'react-qr-scanner';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 
 const drawerWidth = 220;
@@ -81,37 +81,11 @@ async function pagarConQr(idQrPago, monto, descripcion) {
 function QRScanner({ onScan, onClose }) {
   const [cameraError, setCameraError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const scannerRef = useRef(null);
 
-  // Función para obtener y seleccionar la cámara principal
-  const getMainCamera = async () => {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      
-      // Buscar la cámara principal (no ultra-wide)
-      const mainCamera = videoDevices.find(device => 
-        !device.label.toLowerCase().includes('ultra') &&
-        !device.label.toLowerCase().includes('wide') &&
-        !device.label.toLowerCase().includes('gran angular') &&
-        device.label.toLowerCase().includes('back')
-      ) || videoDevices[0]; // Fallback a la primera cámara trasera
-      
-      if (mainCamera) {
-        setSelectedDeviceId(mainCamera.deviceId);
-      }
-    } catch (error) {
-      console.log('No se pudo enumerar dispositivos:', error);
-    }
-  };
-
-  useEffect(() => {
-    getMainCamera();
-  }, []);
-
-  const handleScan = (data) => {
-    if (data) {
-      onScan(data);
+  const handleScan = (decodedText, decodedResult) => {
+    if (decodedText) {
+      onScan(decodedText);
       onClose && onClose();
     }
   };
@@ -120,6 +94,29 @@ function QRScanner({ onScan, onClose }) {
     setCameraError(true);
     setErrorMessage('Error al acceder a la cámara. Verifica los permisos.');
   };
+
+  useEffect(() => {
+    if (scannerRef.current) {
+      const scanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { 
+          fps: 10, 
+          qrbox: 250,
+          facingMode: "environment"
+        },
+        false
+      );
+      
+      scanner.render(handleScan, handleError);
+      scannerRef.current = scanner;
+      
+      return () => {
+        if (scannerRef.current) {
+          scannerRef.current.clear();
+        }
+      };
+    }
+  }, []);
 
   if (cameraError) {
     return (
@@ -164,21 +161,7 @@ function QRScanner({ onScan, onClose }) {
 
   return (
     <div style={{ textAlign: 'center' }}>
-      <QrReader
-        delay={300}
-        onError={handleError}
-        onScan={handleScan}
-        style={{ width: '100%', maxWidth: 320, borderRadius: 8 }}
-        constraints={{
-          video: {
-            deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-            facingMode: 'environment',
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 },
-            aspectRatio: { ideal: 4/3 }
-          }
-        }}
-      />
+      <div id="qr-reader" style={{ width: '100%', maxWidth: 320, borderRadius: 8 }} />
       <button style={{ marginTop: 16, background: '#FFE066', color: '#212121', border: 'none', borderRadius: 6, padding: '8px 20px', fontWeight: 700, fontSize: 16, cursor: 'pointer' }} onClick={onClose}>Cancelar</button>
     </div>
   );
